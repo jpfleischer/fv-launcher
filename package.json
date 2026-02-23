@@ -6,7 +6,7 @@
   "scripts": {
     "start": "arch -x86_64 electron .",
     "build": "electron-builder",
-    "build:mac": "electron-builder --mac",
+    "build:mac": "electron-builder --mac --x64 --dir && codesign --force --deep --sign - 'dist/mac/Farmville Classic.app' && create-dmg --volname 'Farmville Classic' --window-pos 200 120 --window-size 600 400 --icon-size 100 --icon 'Farmville Classic.app' 150 185 --app-drop-link 450 185 'dist/Farmville Classic.dmg' 'dist/mac/Farmville Classic.app'",
     "build:win": "electron-builder --win",
     "build:linux": "electron-builder --linux"
   },
@@ -29,10 +29,13 @@
     "mac": {
       "category": "public.app-category.games",
       "icon": "logo.png",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
       "target": [
         {
           "target": "dmg",
-          "arch": "arm64"
+          "arch": "x64"
         }
       ]
     },

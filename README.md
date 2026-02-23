@@ -54,6 +54,16 @@ GAME_URL=https://your-server.com/game npm start
 
 ## Building Distributable
 
+### Prerequisites for macOS
+
+Install `create-dmg` for creating DMG installers:
+
+```bash
+brew install create-dmg
+```
+
+### Build Commands
+
 ```bash
 # Build for current platform
 npm run build
@@ -68,12 +78,12 @@ Outputs go to `dist/` folder.
 
 ## Requirements
 
-- Node.js 14+
+- Node.js 20+
 - Pepper Flash plugin (32.0.0.465)
 
 ## Notes
 
-- Uses Electron 12.2.3 (last version with Pepper Flash support)
+- Uses Electron 11.5.0 (last version with Pepper Flash support)
 - Flash reached End of Life in December 2020
 - This is for personal/educational use with your own Flash content
 
