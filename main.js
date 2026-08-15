@@ -41,10 +41,42 @@ function getFlashPluginPath() {
 function getFlashVersion() {
   const versions = {
     win32: '34.0.0.376',
-    darwin: '34.0.0.277',
+    darwin: '34.0.0.372',
     linux: '34.0.0.137'
   };
   return versions[process.platform] || '0.0.0.0';
+}
+
+function configureMacFlashPolicy() {
+  if (process.platform !== 'darwin') return;
+
+  // PPAPI Flash reads mms.cfg from Chromium's *Default profile* Pepper Data
+  // directory. Without the Default segment Flash never sees the policy and
+  // displays its own update/EOL block before the game can load.
+  const policyDirectories = [
+    path.join(app.getPath('userData'), 'Default', 'Pepper Data', 'Shockwave Flash', 'System'),
+    // Keep the legacy location too, for Electron builds that use userData as
+    // the profile directory directly.
+    path.join(app.getPath('userData'), 'Pepper Data', 'Shockwave Flash', 'System')
+  ];
+  const policy = [
+    'AutoUpdateDisable=1',
+    'SilentAutoUpdateEnable=0',
+    'EOLUninstallDisable=1',
+    'EnableAllowList=1',
+    'AllowListPreview=1',
+    'AllowListRootMovieOnly=1',
+    'AllowListUrlPattern=https://fv.ktrestoration.xyz/'
+  ].join('\n') + '\n';
+
+  try {
+    for (const policyDirectory of policyDirectories) {
+      fs.mkdirSync(policyDirectory, { recursive: true });
+      fs.writeFileSync(path.join(policyDirectory, 'mms.cfg'), policy, 'utf8');
+    }
+  } catch (error) {
+    console.error('Unable to configure macOS Flash policy:', error);
+  }
 }
 
 function initializeFlash() {
@@ -310,6 +342,7 @@ function createWindow() {
 
 }
 
+configureMacFlashPolicy();
 flashAvailable = initializeFlash();
 
 app.whenReady().then(() => {
