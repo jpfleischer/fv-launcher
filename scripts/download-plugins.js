@@ -30,12 +30,26 @@ const SOURCES = {
   darwin: {
     url: 'https://github.com/darktohka/clean-flash-builds/releases/download/v1.31/ChineseFlash-PPAPI-PepperFlashPlayer.zip',
     archiveSha256: 'cd51f655c3ecee2a1d2516efda9680b8d0ac17afe6ec7e76afca7739d8f3244b',
-    files: [{ name: 'flash.plugin', candidates: ['flash.plugin'], directory: true }]
+    // The published v1.31 Mac PPAPI bundle is otherwise clean, but its
+    // PepperFlashPlayer executable still has FlashPatch's runtime-gate bytes
+    // intact. Apply the five version-specific patches from FlashPatch v1.31.
+    files: [{
+      name: 'flash.plugin',
+      candidates: ['flash.plugin'],
+      directory: true,
+      patches: [
+        { offset: 0x56BB19, original: '744A', patched: '9090' },
+        { offset: 0x56BB56, original: '740D', patched: '9090' },
+        { offset: 0x56BB5F, original: '0F843003', patched: 'E9310300' },
+        { offset: 0x56BB64, original: '00', patched: '90' },
+        { offset: 0x5C9E40, original: '554889E54156', patched: 'B801000000C3' }
+      ]
+    }]
   }
 };
 
 const EXPECTED_SHA256 = {
-  'flash.plugin': '1f9a418281ff621149b583e8a2e58f810592f13540d435f580a558c352aaef99',
+  'flash.plugin': '84b7d057cafb05d715c5f82f631e7703eecf13eeeea9a5777a454ae3de7fefb5',
   'libpepflashplayer.so': 'b09c817ad1d7f0193b79903a07424394c344a7345b849f87b3a938955926ab6f',
   'libpepflashplayer64.so': 'e66c93332824bce66cb862a0b7d5b175f9d5d78b296c1524dfa393ee516b0a7d',
   'pepflashplayer.dll': 'a56a9eb638d1708333b8d9acabf73fb9ff998707f7bdfc8de739eae989b5c21c',
@@ -86,6 +100,22 @@ function sha256(file) {
   return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 }
 
+function applyPatches(file, patches = []) {
+  if (patches.length === 0) return;
+
+  const binary = fs.readFileSync(file);
+  for (const patch of patches) {
+    const original = Buffer.from(patch.original, 'hex');
+    const patched = Buffer.from(patch.patched, 'hex');
+    if (original.length !== patched.length) throw new Error(`Invalid patch length at 0x${patch.offset.toString(16)}`);
+    const current = binary.subarray(patch.offset, patch.offset + original.length);
+    if (current.equals(patched)) continue;
+    if (!current.equals(original)) throw new Error(`Unexpected binary contents at 0x${patch.offset.toString(16)}`);
+    patched.copy(binary, patch.offset);
+  }
+  fs.writeFileSync(file, binary);
+}
+
 async function installFile(source, temporaryDirectory) {
   const archive = path.join(temporaryDirectory, path.basename(new URL(source.url).pathname));
   const unpacked = path.join(temporaryDirectory, `unpacked-${source.name}`);
@@ -102,7 +132,9 @@ async function installFile(source, temporaryDirectory) {
   const destination = path.join(PLUGINS, source.name);
   if (source.directory) await fsp.cp(extracted, destination, { recursive: true, force: true });
   else await fsp.copyFile(extracted, destination);
-  const actual = sha256(source.directory ? path.join(destination, 'Contents', 'MacOS', 'PepperFlashPlayer') : destination);
+  const installedFile = source.directory ? path.join(destination, 'Contents', 'MacOS', 'PepperFlashPlayer') : destination;
+  applyPatches(installedFile, source.patches);
+  const actual = sha256(installedFile);
   const expected = EXPECTED_SHA256[source.name];
   if (expected && actual !== expected) throw new Error(`Checksum mismatch for ${source.name}: expected ${expected}, got ${actual}`);
   console.log(`Verified ${source.name}`);
