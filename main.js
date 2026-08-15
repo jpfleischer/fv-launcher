@@ -47,6 +47,36 @@ function getFlashVersion() {
   return versions[process.platform] || '0.0.0.0';
 }
 
+function configureMacFlashPolicy() {
+  if (process.platform !== 'darwin') return;
+
+  // PPAPI Flash reads mms.cfg from Chromium's per-profile Pepper Data folder.
+  // Without this policy the retired Flash runtime displays its own update/EOL
+  // block before the game can load.
+  const policyDirectory = path.join(
+    app.getPath('userData'),
+    'Pepper Data',
+    'Shockwave Flash',
+    'System'
+  );
+  const policy = [
+    'AutoUpdateDisable=1',
+    'SilentAutoUpdateEnable=0',
+    'EOLUninstallDisable=1',
+    'EnableAllowList=1',
+    'AllowListPreview=1',
+    'AllowListRootMovieOnly=1',
+    'AllowListUrlPattern=https://fv.ktrestoration.xyz/'
+  ].join('\n') + '\n';
+
+  try {
+    fs.mkdirSync(policyDirectory, { recursive: true });
+    fs.writeFileSync(path.join(policyDirectory, 'mms.cfg'), policy, 'utf8');
+  } catch (error) {
+    console.error('Unable to configure macOS Flash policy:', error);
+  }
+}
+
 function initializeFlash() {
   const flashPath = getFlashPluginPath();
 
@@ -310,6 +340,7 @@ function createWindow() {
 
 }
 
+configureMacFlashPolicy();
 flashAvailable = initializeFlash();
 
 app.whenReady().then(() => {

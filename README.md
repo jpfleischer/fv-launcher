@@ -34,6 +34,9 @@ npm run build:linux
 The macOS build produces a ZIP containing `Flash Player.app`. This avoids the
 legacy DMG toolchain required by the pinned Electron version.
 
+On macOS, the launcher creates a per-user Flash policy that disables the
+retired plug-in's update/EOL prompt and permits `fv.ktrestoration.xyz`.
+
 ## Configure Game URL
 
 The packaged launcher defaults to `https://fv.ktrestoration.xyz/login`.
